@@ -1,0 +1,10 @@
+[Core]
+name = Lean Coffee
+module = lean_coffee
+
+[Documentation]
+description = Run Lean Coffee with Errbot
+
+[Python]
+version = 3
+

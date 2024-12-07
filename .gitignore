@@ -1,0 +1,41 @@
+*.pyc
+__pycache__
+.venv
+/.coafile
+/.idea
+/atlassian-ide-plugin.xml
+/.settings
+/config.py
+nohup.out
+/build
+/dist
+/errbot.egg-info*
+/config-*.egg
+/config*.py
+/docs/_build
+/docs/errbot.rst
+/docs/errbot.*.rst
+/.cache
+/.coverage
+/data
+/config.py.*
+/.pytest_cache
+/.mypy_cache
+
+# tools
+/tools/Home.md
+/tools/token
+/tools/repos.json
+
+*.log
+*.crt
+
+# OS X
+.DS_Store
+
+# legacy stuff
+legacy/dist/
+legacy/err.egg-info/
+
+# tox
+.tox
