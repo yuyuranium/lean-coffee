@@ -53,7 +53,7 @@ class LeanCoffeeBackend:
     def GetAttendee(self, id: str, name: str):
         if id in self.attendee:
             return self.attendee[id]
-        attendee = Attendee(name, id, self.max_votes)
+        attendee = Attendee(id, name, self.max_votes)
         self.attendee[id] = attendee
         return attendee
 
