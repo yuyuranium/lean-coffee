@@ -50,7 +50,7 @@ class LeanCoffeeBackend:
     def SetStatus(self, status: Status):
         self.status = status
 
-    def GetAttendee(self, name: str, id: str):
+    def GetAttendee(self, id: str, name: str):
         if id in self.attendee:
             return self.attendee[id]
         attendee = Attendee(name, id, self.max_votes)
@@ -61,7 +61,7 @@ class LeanCoffeeBackend:
                     author_name: str):
         if self.status != LeanCoffeeBackend.Status.CREATED:
             return
-        author = self.GetAttendee(author_name, author_id)
+        author = self.GetAttendee(author_id, author_name)
         topic = Topic(topic_id, content, author)
         self.topics[id] = topic
 
@@ -71,7 +71,7 @@ class LeanCoffeeBackend:
             return
         if topic_id not in self.topics:
             return
-        self.GetAttendee(attendee_name, attendee_id).Vote(topic_id)
+        self.GetAttendee(attendee_id, attendee_name).Vote(topic_id)
 
     def AttendeeUnvote(self, topic_id: str, attendee_id: str,
                        attendee_name: str):
@@ -79,7 +79,7 @@ class LeanCoffeeBackend:
             return
         if topic_id not in self.topics:
             return
-        self.GetAttendee(attendee_name, attendee_id).Unvote(topic_id)
+        self.GetAttendee(attendee_id, attendee_name).Unvote(topic_id)
 
     def FinalizeTopics(self):
         if self.status != LeanCoffeeBackend.Status.CREATED:
@@ -127,7 +127,7 @@ class LeanCoffeeBackend:
 ongoing_lean_coffees = {}
 
 
-def GetLeanCoffee(channel_id: str) -> LeanCoffeeBackend | None:
+def GetLeanCoffee(channel_id: str):
     lean_coffee = ongoing_lean_coffees.get(channel_id, None)
     if lean_coffee is not None and lean_coffee.status == LeanCoffeeBackend.Status.FINISHED:
         del ongoing_lean_coffees[channel_id]
@@ -135,8 +135,7 @@ def GetLeanCoffee(channel_id: str) -> LeanCoffeeBackend | None:
     return lean_coffee
 
 
-def CreateLeanCoffee(channel_id: str, coordinator_id: str,
-                     max_votes: int) -> LeanCoffeeBackend | None:
+def CreateLeanCoffee(channel_id: str, coordinator_id: str, max_votes: int):
     if GetLeanCoffee(channel_id) is not None:
         return None
     lean_coffee = LeanCoffeeBackend(coordinator_id, max_votes)
