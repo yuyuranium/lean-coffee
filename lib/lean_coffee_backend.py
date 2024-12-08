@@ -1,4 +1,5 @@
 from enum import Enum
+from time import time, strftime, gmtime
 
 
 class Attendee:
@@ -36,6 +37,7 @@ class Topic:
         self.voters = []
         self.votes = 0
         self.continue_vote = Topic.ContinueVote()
+        self.discussed_time = 0
 
     def __eq__(self, other):
         return self.id == other.id
@@ -56,6 +58,15 @@ class Topic:
 
     def RemoveContinueDownvote(self):
         self.continue_vote.downvotes -= 1
+
+    def StartDiscussion(self):
+        self.discussed_time = time()
+
+    def EndDiscussion(self):
+        self.discussed_time = time() - self.discussed_time
+
+    def GetDiscussedTime(self) -> str:
+        return strftime("%H:%M:%S", gmtime(self.discussed_time))
 
 
 class LeanCoffeeBackend:
@@ -140,16 +151,25 @@ class LeanCoffeeBackend:
             return None
         return self.sorted_topics[self.current_topic_index]
 
-    def GetNextTopic(self):
+    def GetNextTopic(self, time: int):
+        # incorrect status
         if self.status != LeanCoffeeBackend.Status.DISCUSSING:
             return None
+
+        # continue the current topic
         if self.current_topic_index != -1 and self.sorted_topics[
                 self.current_topic_index].ContinueTopic():
             return self.sorted_topics[self.current_topic_index]
+
+        # no more topics
+        self.sorted_topics[self.current_topic_index].EndDiscussion()
         if self.current_topic_index >= len(self.sorted_topics) - 1:
             self.status = LeanCoffeeBackend.Status.FINISHED
             return None
+
+        # move to the next topic
         self.current_topic_index += 1
+        self.sorted_topics[self.current_topic_index].StartDiscussion()
         topic = self.sorted_topics[self.current_topic_index]
         return topic
 
