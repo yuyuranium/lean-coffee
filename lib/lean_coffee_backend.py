@@ -37,6 +37,8 @@ class Topic:
         self.voters = []
         self.votes = 0
         self.continue_vote = Topic.ContinueVote()
+        self.start_time = 0
+        self.elapsed_time = 0
         self.discussed_time = 0
 
     def __eq__(self, other):
@@ -60,10 +62,14 @@ class Topic:
         self.continue_vote.downvotes -= 1
 
     def StartDiscussion(self):
-        self.discussed_time = time()
+        self.start_time = time()
 
     def EndDiscussion(self):
-        self.discussed_time = time() - self.discussed_time
+        self.discussed_time = time() - self.start_time
+
+    def GetElapsedTime(self) -> str:
+        self.elapsed_time = time() - self.start_time
+        return strftime("%H:%M:%S", gmtime(self.elapsed_time))
 
     def GetDiscussedTime(self) -> str:
         return strftime("%H:%M:%S", gmtime(self.discussed_time))
@@ -151,7 +157,7 @@ class LeanCoffeeBackend:
             return None
         return self.sorted_topics[self.current_topic_index]
 
-    def GetNextTopic(self, time: int):
+    def GetNextTopic(self):
         # incorrect status
         if self.status != LeanCoffeeBackend.Status.DISCUSSING:
             return None
