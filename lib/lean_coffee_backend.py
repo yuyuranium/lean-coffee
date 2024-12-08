@@ -91,9 +91,6 @@ class LeanCoffeeBackend:
         self.sorted_topics = []
         self.current_topic_index = -1
 
-    def SetStatus(self, status: Status):
-        self.status = status
-
     def GetAttendee(self, id: str, name: str):
         if id in self.attendee:
             return self.attendee[id]
@@ -184,16 +181,16 @@ ongoing_lean_coffees = {}
 
 
 def GetLeanCoffee(channel_id: str):
-    lean_coffee = ongoing_lean_coffees.get(channel_id, None)
-    if lean_coffee is not None and lean_coffee.status == LeanCoffeeBackend.Status.FINISHED:
-        del ongoing_lean_coffees[channel_id]
-        return None
-    return lean_coffee
+    return ongoing_lean_coffees.get(channel_id, None)
 
 
 def CreateLeanCoffee(channel_id: str, coordinator_id: str, max_votes: int):
     if GetLeanCoffee(channel_id) is not None:
-        return None
+        if ongoing_lean_coffees[
+                channel_id].status != LeanCoffeeBackend.Status.FINISHED:
+            del ongoing_lean_coffees[channel_id]
+        else:
+            return None
     lean_coffee = LeanCoffeeBackend(coordinator_id, max_votes)
     ongoing_lean_coffees[channel_id] = lean_coffee
     return lean_coffee
