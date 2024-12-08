@@ -63,7 +63,7 @@ class LeanCoffeeBackend:
             return
         author = self.GetAttendee(author_id, author_name)
         topic = Topic(topic_id, content, author)
-        self.topics[id] = topic
+        self.topics[topic_id] = topic
 
     def AttendeeVote(self, topic_id: str, attendee_id: str,
                      attendee_name: str):
