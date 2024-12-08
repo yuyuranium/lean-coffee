@@ -22,6 +22,12 @@ class Attendee:
 
 class Topic:
 
+    class ContinueVote:
+
+        def __init__(self):
+            self.upvotes = 0
+            self.downvotes = 0
+
     def __init__(self, id: str, content: str, author: Attendee):
         self.id = id
         self.content = content
@@ -29,6 +35,19 @@ class Topic:
         self.author.authored_topics.append(self)
         self.voters = []
         self.votes = 0
+        self.continue_vote = Topic.ContinueVote()
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def Continue(self) -> bool:
+        return self.continue_vote.upvotes > self.continue_vote.downvotes
+
+    def ContinueUpvote(self):
+        self.continue_vote.upvotes += 1
+
+    def ContinueDownvote(self):
+        self.continue_vote.downvotes += 1
 
 
 class LeanCoffeeBackend:
@@ -45,7 +64,7 @@ class LeanCoffeeBackend:
         self.attendee = {}
         self.topics = {}
         self.sorted_topics = []
-        self.current_topic_index = 0
+        self.current_topic_index = -1
 
     def SetStatus(self, status: Status):
         self.status = status
@@ -119,9 +138,31 @@ class LeanCoffeeBackend:
         if self.current_topic_index >= len(self.sorted_topics):
             self.status = LeanCoffeeBackend.Status.FINISHED
             return None
-        topic = self.sorted_topics[self.current_topic_index]
         self.current_topic_index += 1
+        topic = self.sorted_topics[self.current_topic_index]
         return topic
+
+    def TopicContinueUpvote(self, topic_id: str):
+        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
+            return
+        if topic_id not in self.topics:
+            return
+        self.topics[topic_id].ContinueUpvote()
+
+    def TopicContinueDownvote(self, topic_id: str):
+        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
+            return
+        if topic_id not in self.topics:
+            return
+        self.topics[topic_id].ContinueDownvote()
+
+    def TopicContinue(self, topic_id) -> bool:
+        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
+            return False
+        if topic_id not in self.topics:
+            return False
+        topic = self.topics[topic_id]
+        return topic.Continue()
 
 
 ongoing_lean_coffees = {}
