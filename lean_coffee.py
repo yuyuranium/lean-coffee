@@ -144,7 +144,7 @@ class LeanCoffee(BotPlugin):
             message.to, max_votes
         )
 
-    @re_botcmd(pattern=r"^# Topic: (.*)$", prefixed=False)
+    @re_botcmd(pattern=r"^#\s+(.*)$", prefixed=False)
     def create_topic(self, message, match):
         lc = GetLeanCoffee(message.to.id)
         if lc == None:
@@ -201,7 +201,37 @@ class LeanCoffee(BotPlugin):
         topic = lc.GetNextTopic()
 
         if not topic:
-            yield "No more topics"
+            topics = lc.GetSortedTopics("FULL")
+            body = (
+                "# :tada: Congratulation :pedro:\n---\n"
+                + "### Topics disscussed\n{}".format(
+                    "\n".join(
+                        [
+                            "- @{}: {} ({})".format(
+                                topic.author.name, topic.content, topic.votes
+                            )
+                            for topic in topics
+                        ]
+                    )
+                )
+            )
+
+            self.send_card(
+                to=message.frm,
+                title="Lean Coffee finished",
+                body=body,
+                fields=(
+                    (
+                        "Lean Coffee time:",
+                        "{}".format(lc.GetLeanCoffeeTime()),
+                    ),
+                    (
+                        "Topics disscussed:",
+                        "{}".format(len(topics)),
+                    ),
+                ),
+                color="green",
+            )
             return
 
         self.send_card(
@@ -218,7 +248,7 @@ class LeanCoffee(BotPlugin):
                     "{}".format(topic.GetElapsedTime()),
                 ),
             ),
-            color="green",
+            color="red",
         )
         sleep(time)  # use second for now
         cur_topic = lc.GetCurrentTopic()
@@ -239,7 +269,7 @@ class LeanCoffee(BotPlugin):
         for topic in topics:
             self.send_card(
                 to=message.frm,
-                title="@{} wants to discuss".format(topic.author.name),
+                title="@{} wanted to discuss".format(topic.author.name),
                 body="# {}".format(topic.content),
                 fields=(
                     (
@@ -251,7 +281,7 @@ class LeanCoffee(BotPlugin):
                         "{}".format(topic.GetDiscussedTime()),
                     ),
                 ),
-                color="red",
+                color="green",
             )
 
     @botcmd
