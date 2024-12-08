@@ -127,8 +127,12 @@ class LeanCoffeeBackend:
 ongoing_lean_coffees = {}
 
 
-def GetLeanCoffee(channel_id: str) -> LeanCoffeeBackend:
-    return ongoing_lean_coffees.get(channel_id, None)
+def GetLeanCoffee(channel_id: str) -> LeanCoffeeBackend | None:
+    lean_coffee = ongoing_lean_coffees.get(channel_id, None)
+    if lean_coffee is not None and lean_coffee.status == LeanCoffeeBackend.Status.FINISHED:
+        del ongoing_lean_coffees[channel_id]
+        return None
+    return lean_coffee
 
 
 def CreateLeanCoffee(channel_id: str, coordinator_id: str,
