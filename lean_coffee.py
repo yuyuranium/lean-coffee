@@ -103,7 +103,7 @@ class LeanCoffee(BotPlugin):
 
             message = reaction.reacted_to["message"]
             is_continue_question = re.match(
-                r"^Continue discussing topic: (.*)\?$", message
+                r"^## @all Continue discussing topic: (.*)\?$", message
             )
             if not is_continue_question:
                 # self.send(reaction.reacted_to_owner, "Not a continue question, ignored")
@@ -148,13 +148,12 @@ class LeanCoffee(BotPlugin):
     def create_topic(self, message, match):
         lc = GetLeanCoffee(message.to.id)
         if lc == None:
-            return "LeanCoffee is not created"
+            return
 
         topic = match.group(1)
         lc.CreateTopic(
             message.extras["id"], topic, message.frm.userid, message.frm.username
         )
-        return "Creating Topic: {} in {}".format(match.group(1), message.to)
 
     @botcmd
     def lc_finalize(self, message, args):
@@ -169,13 +168,24 @@ class LeanCoffee(BotPlugin):
         lc.FinalizeTopics()
         topics = lc.GetSortedTopics("FULL")
 
-        topic_strs = [
-            "- @{}: {}; votes={}".format(topic.author.name, topic.content, topic.votes)
-            for topic in topics
-        ]
-        return "\n".join(topic_strs)
+        if not topics:
+            return
 
-    @arg_botcmd("time", type=int, unpack_args=False)
+        for topic in topics:
+            self.send_card(
+                to=message.frm,
+                title="@{} wants to discuss".format(topic.author.name),
+                body="# {}".format(topic.content),
+                fields=(
+                    (
+                        "Interested by:",
+                        " ".join(["@{}".format(voter.name) for voter in topic.voters]),
+                    ),
+                ),
+                color="blue",
+            )
+
+    @arg_botcmd("-t", type=int, unpack_args=False)
     def lc_next(self, message, args):
         lc = GetLeanCoffee(message.to.id)
         if lc == None:
@@ -187,13 +197,84 @@ class LeanCoffee(BotPlugin):
             yield "Not coordinator, aborted"
             return
 
+        time = abs(args.t or 5)
         topic = lc.GetNextTopic()
 
         if not topic:
             yield "No more topics"
             return
 
-        yield "Discussing {} for {} minutes".format(topic.content, args.time)
-        sleep(args.time)  # use second for now
-        if lc.GetCurrentTopic() == topic:
-            yield "Continue discussing topic: {}?".format(topic.content)
+        self.send_card(
+            to=message.frm,
+            title="Now discussing",
+            body="# {}".format(topic.content),
+            fields=(
+                (
+                    "Scheduled:",
+                    "{} minutes".format(time),
+                ),
+                (
+                    "Elapsed:",
+                    "{}".format(topic.GetElapsedTime()),
+                ),
+            ),
+            color="green",
+        )
+        sleep(time)  # use second for now
+        cur_topic = lc.GetCurrentTopic()
+        if cur_topic and cur_topic == topic:
+            yield "## @all Continue discussing topic: {}?".format(topic.content)
+
+    @botcmd
+    def lc_summarize(self, message, args):
+        lc = GetLeanCoffee(message.to.id)
+        if lc == None:
+            return "LeanCoffee is not created"
+
+        topics = lc.GetSortedTopics("FINISHED")
+
+        if not topics:
+            return
+
+        for topic in topics:
+            self.send_card(
+                to=message.frm,
+                title="@{} wants to discuss".format(topic.author.name),
+                body="# {}".format(topic.content),
+                fields=(
+                    (
+                        "Interested by:",
+                        " ".join(["@{}".format(voter.name) for voter in topic.voters]),
+                    ),
+                    (
+                        "Discussed:",
+                        "{}".format(topic.GetDiscussedTime()),
+                    ),
+                ),
+                color="red",
+            )
+
+    @botcmd
+    def lc_queue(self, message, args):
+        lc = GetLeanCoffee(message.to.id)
+        if lc == None:
+            return "LeanCoffee is not created"
+
+        topics = lc.GetSortedTopics("UNFINISHED")
+
+        if not topics:
+            return
+
+        for topic in topics:
+            self.send_card(
+                to=message.frm,
+                title="@{} wants to discuss".format(topic.author.name),
+                body="# {}".format(topic.content),
+                fields=(
+                    (
+                        "Interested by:",
+                        " ".join(["@{}".format(voter.name) for voter in topic.voters]),
+                    ),
+                ),
+                color="blue",
+            )
