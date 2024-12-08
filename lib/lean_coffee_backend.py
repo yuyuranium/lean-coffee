@@ -40,14 +40,22 @@ class Topic:
     def __eq__(self, other):
         return self.id == other.id
 
-    def Continue(self) -> bool:
-        return self.continue_vote.upvotes > self.continue_vote.downvotes
+    def ContinueTopic(self) -> bool:
+        continue_topic = self.continue_vote.upvotes > self.continue_vote.downvotes
+        self.continue_vote = Topic.ContinueVote()  # Reset the votes
+        return continue_topic
 
-    def ContinueUpvote(self):
+    def AddContinueUpvote(self):
         self.continue_vote.upvotes += 1
+
+    def RemoveContinueUpvote(self):
+        self.continue_vote.upvotes -= 1
 
     def ContinueDownvote(self):
         self.continue_vote.downvotes += 1
+
+    def RemoveContinueDownvote(self):
+        self.continue_vote.downvotes -= 1
 
 
 class LeanCoffeeBackend:
@@ -141,28 +149,6 @@ class LeanCoffeeBackend:
         self.current_topic_index += 1
         topic = self.sorted_topics[self.current_topic_index]
         return topic
-
-    def TopicContinueUpvote(self, topic_id: str):
-        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
-            return
-        if topic_id not in self.topics:
-            return
-        self.topics[topic_id].ContinueUpvote()
-
-    def TopicContinueDownvote(self, topic_id: str):
-        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
-            return
-        if topic_id not in self.topics:
-            return
-        self.topics[topic_id].ContinueDownvote()
-
-    def TopicContinue(self, topic_id) -> bool:
-        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
-            return False
-        if topic_id not in self.topics:
-            return False
-        topic = self.topics[topic_id]
-        return topic.Continue()
 
 
 ongoing_lean_coffees = {}
