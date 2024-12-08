@@ -82,6 +82,12 @@ class LeanCoffeeBackend:
         DISCUSSING = 2
         FINISHED = 3
 
+        def __lt__(self, other):
+            return self.value < other.value
+
+        def __ge__(self, other):
+            return self.value >= other.value
+
     def __init__(self, coordinator_id: str, max_votes: int):
         self.status = LeanCoffeeBackend.Status.CREATED
         self.max_votes = max_votes
@@ -137,7 +143,7 @@ class LeanCoffeeBackend:
 
     # type: FULL, FINISHED, UNFINISHED
     def GetSortedTopics(self, fetch_type: str):
-        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
+        if self.status < LeanCoffeeBackend.Status.DISCUSSING:
             return []
         if fetch_type == "FULL":
             return self.sorted_topics
