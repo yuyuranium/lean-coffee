@@ -3,9 +3,9 @@ from enum import Enum
 
 class Attendee:
 
-    def __init__(self, name: str, id: str, max_votes: int):
-        self.name = name
+    def __init__(self, id: str, name: str, max_votes: int):
         self.id = id
+        self.name = name
         self.max_votes = max_votes
         self.authored_topics = []
         self.voted_topics = []
@@ -54,12 +54,12 @@ class LeanCoffeeBackend:
         self.attendee[id] = attendee
         return attendee
 
-    def CreateTopic(self, id: str, content: str, author_name: str,
-                    author_id: str):
+    def CreateTopic(self, topic_id: str, content: str, author_id: str,
+                    author_name: str):
         if self.status != LeanCoffeeBackend.Status.CREATED:
             return
         author = self.GetAttendee(author_name, author_id)
-        topic = Topic(id, content, author)
+        topic = Topic(topic_id, content, author)
         self.topics[id] = topic
 
     def AttendeeVote(self, topic_id: str, attendee_id: str,
@@ -92,14 +92,14 @@ class LeanCoffeeBackend:
         self.status = LeanCoffeeBackend.Status.DISCUSSING
 
     # type: FULL, FINISHED, UNFINISHED
-    def GetSortedTopics(self, type: str):
+    def GetSortedTopics(self, fetch_type: str):
         if self.status != LeanCoffeeBackend.Status.DISCUSSING:
             return []
-        if type == "FULL":
+        if fetch_type == "FULL":
             return self.sorted_topics
-        elif type == "FINISHED":
+        elif fetch_type == "FINISHED":
             return self.sorted_topics[:self.current_topic_index]
-        elif type == "UNFINISHED":
+        elif fetch_type == "UNFINISHED":
             return self.sorted_topics[self.current_topic_index + 1:]
 
     def GetCurrentTopic(self):
