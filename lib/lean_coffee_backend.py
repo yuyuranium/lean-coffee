@@ -143,12 +143,12 @@ class LeanCoffeeBackend:
     def GetNextTopic(self):
         if self.status != LeanCoffeeBackend.Status.DISCUSSING:
             return None
-        if self.current_topic_index >= len(self.sorted_topics):
-            self.status = LeanCoffeeBackend.Status.FINISHED
-            return None
         if self.current_topic_index != -1 and self.sorted_topics[
                 self.current_topic_index].ContinueTopic():
             return self.sorted_topics[self.current_topic_index]
+        if self.current_topic_index >= len(self.sorted_topics) - 1:
+            self.status = LeanCoffeeBackend.Status.FINISHED
+            return None
         self.current_topic_index += 1
         topic = self.sorted_topics[self.current_topic_index]
         return topic
