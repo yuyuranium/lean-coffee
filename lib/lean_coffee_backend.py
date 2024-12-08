@@ -34,13 +34,12 @@ class Topic:
 class LeanCoffeeBackend:
 
     class Status(Enum):
-        UNINITIALIZED = 0
         CREATED = 1
         DISCUSSING = 2
         FINISHED = 3
 
     def __init__(self, coordinator_id: str, max_votes: int):
-        self.status = LeanCoffeeBackend.Status.UNINITIALIZED
+        self.status = LeanCoffeeBackend.Status.CREATED
         self.max_votes = max_votes
         self.coordinator_id = coordinator_id
         self.attendee = {}
@@ -128,14 +127,14 @@ class LeanCoffeeBackend:
 ongoing_lean_coffees = {}
 
 
-def CreateOrGetLeanCoffee(channel_id: str, coordinator_id: str,
-                          max_votes: int) -> LeanCoffeeBackend:
-    if channel_id in ongoing_lean_coffees:
-        if ongoing_lean_coffees[
-                channel_id].status == LeanCoffeeBackend.Status.FINISHED:
-            del ongoing_lean_coffees[channel_id]
-        else:
-            return ongoing_lean_coffees[channel_id]
+def GetLeanCoffee(channel_id: str) -> LeanCoffeeBackend:
+    return ongoing_lean_coffees.get(channel_id, None)
+
+
+def CreateLeanCoffee(channel_id: str, coordinator_id: str,
+                     max_votes: int) -> LeanCoffeeBackend | None:
+    if GetLeanCoffee(channel_id) is not None:
+        return None
     lean_coffee = LeanCoffeeBackend(coordinator_id, max_votes)
     ongoing_lean_coffees[channel_id] = lean_coffee
     return lean_coffee
