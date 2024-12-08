@@ -96,6 +96,9 @@ class LeanCoffee(BotPlugin):
                     reaction.reactor.userid,
                     reaction.reactor.username,
                 )
+            elif reaction.action == "post_deleted":
+                lc.DeleteTopic(reaction.reacted_to["id"])
+
         elif lc.status == LeanCoffeeBackend.Status.DISCUSSING:
             if reaction.reacted_to["user_id"] != self.bot_identifier.userid:
                 # self.send(reaction.reacted_to_owner, "Not from bot itself, ignored")
@@ -103,7 +106,7 @@ class LeanCoffee(BotPlugin):
 
             message = reaction.reacted_to["message"]
             is_continue_question = re.match(
-                r"^## @all Continue discussing topic: (.*)\?$", message
+                r"^## @all Continue discussing topic: \"(.*)\"\?$", message
             )
             if not is_continue_question:
                 # self.send(reaction.reacted_to_owner, "Not a continue question, ignored")
@@ -138,23 +141,31 @@ class LeanCoffee(BotPlugin):
         lc = CreateLeanCoffee(message.to.id, message.frm.userid, max_votes)
 
         if not lc:
-            return "Cannot create LeanCoffeeBackend as one is ongoing"
+            return "Cannot create Lean Coffee as one is ongoing"
 
-        return "Creating LeanCoffee in {} with max_votes={}".format(
-            message.to, max_votes
-        )
+        return (
+            "## Lean Coffee created :coffee:\n"
+            "### Rules\n"
+            "- Coordinator: @{}\n"
+            "- Max votes per person: {}\n"
+            "### Hints\n"
+            "- Create topics with [H1 headings](https://docs.mattermost.com/collaborate/format-messages.html#id2)\n"
+            "- Vote for topics by [reacting with emojis](https://docs.mattermost.com/collaborate/react-with-emojis-gifs.html)\n"
+            "- React :+1: for continuing the topic and :-1: for ending one\n"
+        ).format(message.frm.username, max_votes)
 
     @botcmd
     def lc_abort(self, message, args):
         lc = GetLeanCoffee(message.to.id)
         if not lc:
-            return "LeanCoffee is not created"
+            return "Lean Coffee is not created"
 
         # Only coordinator can do so
         if message.frm.userid != lc.coordinator_id:
             return "Not coordinator, aborted"
 
         lc.AbortLeanCoffee()
+        return "Aborted"
 
     @re_botcmd(pattern=r"^#\s+(.*)$", prefixed=False)
     def create_topic(self, message, match):
@@ -171,11 +182,14 @@ class LeanCoffee(BotPlugin):
     def lc_finalize(self, message, args):
         lc = GetLeanCoffee(message.to.id)
         if not lc:
-            return "LeanCoffee is not created"
+            return "Lean Coffee is not created"
 
         # Only coordinator can do so
         if message.frm.userid != lc.coordinator_id:
             return "Not coordinator, aborted"
+
+        if lc.status > LeanCoffeeBackend.Status.CREATED:
+            return "Cannot finalize during discussion"
 
         lc.FinalizeTopics()
         topics = lc.GetSortedTopics("FULL")
@@ -198,11 +212,11 @@ class LeanCoffee(BotPlugin):
                 color="blue",
             )
 
-    @arg_botcmd("-t", type=int, unpack_args=False)
+    @arg_botcmd("time", type=float, nargs="?", default=5.0, unpack_args=False)
     def lc_next(self, message, args):
         lc = GetLeanCoffee(message.to.id)
         if not lc:
-            yield "LeanCoffee is not created"
+            yield "Lean Coffee is not created"
             return
 
         # Only coordinator can do so
@@ -210,13 +224,18 @@ class LeanCoffee(BotPlugin):
             yield "Not coordinator, aborted"
             return
 
-        time = abs(args.t or 5)
+        if lc.status < LeanCoffeeBackend.Status.DISCUSSING:
+            yield "Do !lc finalize first"
+            return
+
+        time = args.time
+        seconds = time * 60  # time is in minutes
         topic = lc.GetNextTopic()
 
         if not topic:
             topics = lc.GetSortedTopics("FULL")
             body = (
-                "# :tada: Congratulation :pedro:\n---\n"
+                "# :tada: Congratulation! :pedro:\n---\n"
                 + "### Topics disscussed\n{}".format(
                     "\n".join(
                         [
@@ -257,7 +276,7 @@ class LeanCoffee(BotPlugin):
             fields=(
                 (
                     "Scheduled:",
-                    "{} minutes".format(time),
+                    strftime("%H:%M:%S", gmtime(seconds)),
                 ),
                 (
                     "Elapsed:",
@@ -266,16 +285,16 @@ class LeanCoffee(BotPlugin):
             ),
             color="red",
         )
-        sleep(time)  # use second for now
+        sleep(seconds)
         cur_topic = lc.GetCurrentTopic()
         if cur_topic and cur_topic == topic:
-            yield "## @all Continue discussing topic: {}?".format(topic.content)
+            yield '## @all Continue discussing topic: "{}"?'.format(topic.content)
 
     @botcmd
     def lc_summarize(self, message, args):
         lc = GetLeanCoffee(message.to.id)
         if not lc:
-            return "LeanCoffee is not created"
+            return "Lean Coffee is not created"
 
         topics = lc.GetSortedTopics("FINISHED")
 
@@ -304,7 +323,7 @@ class LeanCoffee(BotPlugin):
     def lc_queue(self, message, args):
         lc = GetLeanCoffee(message.to.id)
         if not lc:
-            return "LeanCoffee is not created"
+            return "Lean Coffee is not created"
 
         topics = lc.GetSortedTopics("UNFINISHED")
 
