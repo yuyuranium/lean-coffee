@@ -33,17 +33,6 @@ class LeanCoffee(BotPlugin):
         """
         super(LeanCoffee, self).deactivate()
 
-    def get_configuration_template(self):
-        """
-        Defines the configuration structure this plugin supports
-
-        You should delete it if your plugin doesn't use any configuration like this
-        """
-        return {
-            "EXAMPLE_KEY_1": "Example value",
-            "EXAMPLE_KEY_2": ["Example", "Value"],
-        }
-
     def check_configuration(self, configuration):
         """
         Triggers when the configuration is checked, shortly before activation
@@ -53,30 +42,6 @@ class LeanCoffee(BotPlugin):
         You should delete it if you're not using it to override any default behaviour
         """
         super(LeanCoffee, self).check_configuration(configuration)
-
-    def callback_connect(self):
-        """
-        Triggers when bot is connected
-
-        You should delete it if you're not using it to override any default behaviour
-        """
-        pass
-
-    def callback_message(self, message):
-        """
-        Triggered for every received message that isn't coming from the bot itself
-
-        You should delete it if you're not using it to override any default behaviour
-        """
-        pass
-
-    def callback_botmessage(self, message):
-        """
-        Triggered for every message that comes from the bot itself
-
-        You should delete it if you're not using it to override any default behaviour
-        """
-        pass
 
     def callback_reaction(self, reaction):
         lc = GetLeanCoffee(reaction.reacted_to_owner.id)
@@ -130,14 +95,17 @@ class LeanCoffee(BotPlugin):
                 elif reaction.reaction_name == "-1":
                     cur_topic.RemoveContinueDownvote()
 
-    @webhook
-    def example_webhook(self, incoming_request):
-        """A webhook which simply returns 'Example'"""
-        return "Example"
-
-    @arg_botcmd("--max-votes", type=int, unpack_args=False)
+    @arg_botcmd(
+        "--max-votes",
+        type=int,
+        choices=range(1, 10),
+        default=3,
+        unpack_args=False,
+        help="max votes per person",
+    )
     def lc_create(self, message, args):
-        max_votes = abs(args.max_votes or 3)
+        """Create a Lean Coffee session"""
+        max_votes = args.max_votes
         lc = CreateLeanCoffee(message.to.id, message.frm.userid, max_votes)
 
         if not lc:
@@ -150,12 +118,14 @@ class LeanCoffee(BotPlugin):
             "- Max votes per person: {}\n"
             "### Hints\n"
             "- Create topics with [H1 headings](https://docs.mattermost.com/collaborate/format-messages.html#id2)\n"
+            "- Delete a topic by [deleting the post](https://docs.mattermost.com/collaborate/send-messages.html#delete-messages)\n"
             "- Vote for topics by [reacting with emojis](https://docs.mattermost.com/collaborate/react-with-emojis-gifs.html)\n"
             "- React :+1: for continuing the topic and :-1: for ending one\n"
         ).format(message.frm.username, max_votes)
 
     @botcmd
     def lc_abort(self, message, args):
+        """Abort a Lean Coffee session"""
         lc = GetLeanCoffee(message.to.id)
         if not lc:
             return "Lean Coffee is not created"
@@ -169,6 +139,7 @@ class LeanCoffee(BotPlugin):
 
     @re_botcmd(pattern=r"^#\s+(.*)$", prefixed=False)
     def create_topic(self, message, match):
+        """Add a topic using H1 heading syntax"""
         lc = GetLeanCoffee(message.to.id)
         if not lc:
             return
@@ -180,6 +151,7 @@ class LeanCoffee(BotPlugin):
 
     @botcmd
     def lc_finalize(self, message, args):
+        """Finalize topics to discuss"""
         lc = GetLeanCoffee(message.to.id)
         if not lc:
             return "Lean Coffee is not created"
@@ -212,8 +184,16 @@ class LeanCoffee(BotPlugin):
                 color="blue",
             )
 
-    @arg_botcmd("time", type=float, nargs="?", default=5.0, unpack_args=False)
+    @arg_botcmd(
+        "time",
+        type=float,
+        nargs="?",
+        default=5.0,
+        unpack_args=False,
+        help="minutes to discuss",
+    )
     def lc_next(self, message, args):
+        """Discuss next topic for <time> minutes"""
         lc = GetLeanCoffee(message.to.id)
         if not lc:
             yield "Lean Coffee is not created"
@@ -228,8 +208,11 @@ class LeanCoffee(BotPlugin):
             yield "Do !lc finalize first"
             return
 
-        time = args.time
-        seconds = time * 60  # time is in minutes
+        if args.time < 0.0:
+            yield "Invalid time"
+            return
+
+        seconds = args.time * 60  # time is in minutes
         topic = lc.GetNextTopic()
 
         if not topic:
@@ -292,6 +275,7 @@ class LeanCoffee(BotPlugin):
 
     @botcmd
     def lc_summarize(self, message, args):
+        """Summarize discussed topics"""
         lc = GetLeanCoffee(message.to.id)
         if not lc:
             return "Lean Coffee is not created"
@@ -321,6 +305,7 @@ class LeanCoffee(BotPlugin):
 
     @botcmd
     def lc_queue(self, message, args):
+        """Show the topics queue"""
         lc = GetLeanCoffee(message.to.id)
         if not lc:
             return "Lean Coffee is not created"
