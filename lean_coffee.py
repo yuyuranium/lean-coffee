@@ -137,17 +137,29 @@ class LeanCoffee(BotPlugin):
         max_votes = abs(args.max_votes or 3)
         lc = CreateLeanCoffee(message.to.id, message.frm.userid, max_votes)
 
-        if lc == None:
+        if not lc:
             return "Cannot create LeanCoffeeBackend as one is ongoing"
 
         return "Creating LeanCoffee in {} with max_votes={}".format(
             message.to, max_votes
         )
 
+    @botcmd
+    def lc_abort(self, message, args):
+        lc = GetLeanCoffee(message.to.id)
+        if not lc:
+            return "LeanCoffee is not created"
+
+        # Only coordinator can do so
+        if message.frm.userid != lc.coordinator_id:
+            return "Not coordinator, aborted"
+
+        lc.AbortLeanCoffee()
+
     @re_botcmd(pattern=r"^#\s+(.*)$", prefixed=False)
     def create_topic(self, message, match):
         lc = GetLeanCoffee(message.to.id)
-        if lc == None:
+        if not lc:
             return
 
         topic = match.group(1)
@@ -158,7 +170,7 @@ class LeanCoffee(BotPlugin):
     @botcmd
     def lc_finalize(self, message, args):
         lc = GetLeanCoffee(message.to.id)
-        if lc == None:
+        if not lc:
             return "LeanCoffee is not created"
 
         # Only coordinator can do so
@@ -169,7 +181,8 @@ class LeanCoffee(BotPlugin):
         topics = lc.GetSortedTopics("FULL")
 
         if not topics:
-            return
+            lc.AbortLeanCoffee()
+            return "No topics to discuss, aborted"
 
         for topic in topics:
             self.send_card(
@@ -188,7 +201,7 @@ class LeanCoffee(BotPlugin):
     @arg_botcmd("-t", type=int, unpack_args=False)
     def lc_next(self, message, args):
         lc = GetLeanCoffee(message.to.id)
-        if lc == None:
+        if not lc:
             yield "LeanCoffee is not created"
             return
 
@@ -207,8 +220,11 @@ class LeanCoffee(BotPlugin):
                 + "### Topics disscussed\n{}".format(
                     "\n".join(
                         [
-                            "- @{}: {} ({})".format(
-                                topic.author.name, topic.content, topic.votes
+                            "- @{}: {} ({}) [{}]".format(
+                                topic.author.name,
+                                topic.content,
+                                topic.votes,
+                                topic.GetDiscussedTime(),
                             )
                             for topic in topics
                         ]
@@ -258,7 +274,7 @@ class LeanCoffee(BotPlugin):
     @botcmd
     def lc_summarize(self, message, args):
         lc = GetLeanCoffee(message.to.id)
-        if lc == None:
+        if not lc:
             return "LeanCoffee is not created"
 
         topics = lc.GetSortedTopics("FINISHED")
@@ -287,7 +303,7 @@ class LeanCoffee(BotPlugin):
     @botcmd
     def lc_queue(self, message, args):
         lc = GetLeanCoffee(message.to.id)
-        if lc == None:
+        if not lc:
             return "LeanCoffee is not created"
 
         topics = lc.GetSortedTopics("UNFINISHED")
