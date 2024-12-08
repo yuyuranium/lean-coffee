@@ -187,7 +187,7 @@ def GetLeanCoffee(channel_id: str):
 def CreateLeanCoffee(channel_id: str, coordinator_id: str, max_votes: int):
     if GetLeanCoffee(channel_id) is not None:
         if ongoing_lean_coffees[
-                channel_id].status != LeanCoffeeBackend.Status.FINISHED:
+                channel_id].status == LeanCoffeeBackend.Status.FINISHED:
             del ongoing_lean_coffees[channel_id]
         else:
             return None
