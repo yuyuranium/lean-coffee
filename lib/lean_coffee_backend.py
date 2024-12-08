@@ -1,41 +1,51 @@
+from enum import Enum
+
+
 class Attendee:
 
     def __init__(self, name: str, id: str, max_votes: int):
         self.name = name
         self.id = id
         self.max_votes = max_votes
-        self.authored_posts = []
-        self.voted_posts = []
-        self.valid_voted_posts = []
+        self.authored_topics = []
+        self.voted_topics = []
+        self.valid_voted_topics = []
 
-    def Vote(self, post_id):
-        self.voted_posts.append(post_id)
-        self.valid_voted_posts = self.voted_posts[:self.max_votes]
+    def Vote(self, topic_id):
+        self.voted_topics.append(topic_id)
+        self.valid_voted_topics = self.voted_topics[:self.max_votes]
 
-    def Unvote(self, post_id):
-        self.voted_posts.remove(post_id)
-        self.valid_voted_posts = self.voted_posts[:self.max_votes]
+    def Unvote(self, topic_id):
+        self.voted_topics.remove(topic_id)
+        self.valid_voted_topics = self.voted_topics[:self.max_votes]
 
 
-class Post:
+class Topic:
 
     def __init__(self, id: str, content: str, author: Attendee):
         self.id = id
         self.content = content
         self.author = author
-        self.author.authored_posts.append(self)
+        self.author.authored_topics.append(self)
         self.voters = []
         self.votes = 0
 
 
 class LeanCoffeeBackend:
 
-    def __init__(self, max_votes: int):
+    class Status(Enum):
+        CREATED = 1
+        DISCUSSING = 2
+        FINISHED = 3
+
+    def __init__(self, coordinator_id: str, max_votes: int):
+        self.status = LeanCoffeeBackend.Status.CREATED
         self.max_votes = max_votes
+        self.coordinator_id = coordinator_id
         self.attendee = {}
-        self.posts = {}
-        self.sorted_posts = []
-        self.current_post_index = 0
+        self.topics = {}
+        self.sorted_topics = []
+        self.current_topic_index = 0
 
     def GetAttendee(self, name: str, id: str):
         if id in self.attendee:
@@ -44,38 +54,86 @@ class LeanCoffeeBackend:
         self.attendee[id] = attendee
         return attendee
 
-    def CreatePost(self, id: str, content: str, author_name: str,
-                   author_id: str):
+    def CreateTopic(self, id: str, content: str, author_name: str,
+                    author_id: str):
+        if self.status != LeanCoffeeBackend.Status.CREATED:
+            return
         author = self.GetAttendee(author_name, author_id)
-        post = Post(id, content, author)
-        self.posts[id] = post
+        topic = Topic(id, content, author)
+        self.topics[id] = topic
 
-    def AttendeeVote(self, post_id: str, attendee_id: str, attendee_name: str):
-        if (post_id not in self.posts):
+    def AttendeeVote(self, topic_id: str, attendee_id: str,
+                     attendee_name: str):
+        if self.status != LeanCoffeeBackend.Status.CREATED:
             return
-        self.GetAttendee(attendee_name, attendee_id).Vote(post_id)
+        if topic_id not in self.topics:
+            return
+        self.GetAttendee(attendee_name, attendee_id).Vote(topic_id)
 
-    def AttendeeUnvote(self, post_id: str, attendee_id: str,
+    def AttendeeUnvote(self, topic_id: str, attendee_id: str,
                        attendee_name: str):
-        if (post_id not in self.posts):
+        if self.status != LeanCoffeeBackend.Status.CREATED:
             return
-        self.GetAttendee(attendee_name, attendee_id).Unvote(post_id)
+        if topic_id not in self.topics:
+            return
+        self.GetAttendee(attendee_name, attendee_id).Unvote(topic_id)
 
-    def FinalizePosts(self):
+    def FinalizeTopics(self):
+        if self.status != LeanCoffeeBackend.Status.CREATED:
+            return
         for attendee in self.attendee.values():
-            for post_id in attendee.valid_voted_posts:
-                self.posts[post_id].voters.append(attendee)
-                self.posts[post_id].votes += 1
+            for topic_id in attendee.valid_voted_topics:
+                self.topics[topic_id].voters.append(attendee)
+                self.topics[topic_id].votes += 1
 
-        self.sorted_posts = sorted(
-            self.posts.values(), key=lambda x: x.votes, reverse=True)
+        self.sorted_topics = sorted(self.topics.values(),
+                                    key=lambda x: x.votes,
+                                    reverse=True)
+        self.status = LeanCoffeeBackend.Status.DISCUSSING
 
-    def GetSortedPosts(self):
-        return self.sorted_posts
+    # type: FULL, FINISHED, UNFINISHED
+    def GetSortedTopics(self, type: str):
+        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
+            return []
+        if type == "FULL":
+            return self.sorted_topics
+        elif type == "FINISHED":
+            return self.sorted_topics[:self.current_topic_index]
+        elif type == "UNFINISHED":
+            return self.sorted_topics[self.current_topic_index + 1:]
 
-    def GetNextPost(self):
-        if self.current_post_index >= len(self.sorted_posts):
+    def GetCurrentTopic(self):
+        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
             return None
-        post = self.sorted_posts[self.current_post_index]
-        self.current_post_index += 1
-        return post
+        if self.current_topic_index >= len(self.sorted_topics):
+            self.status = LeanCoffeeBackend.Status.FINISHED
+            return None
+        return self.sorted_topics[self.current_topic_index]
+
+    def GetNextTopic(self):
+        if self.status != LeanCoffeeBackend.Status.DISCUSSING:
+            return None
+        if self.current_topic_index >= len(self.sorted_topics):
+            self.status = LeanCoffeeBackend.Status.FINISHED
+            return None
+        topic = self.sorted_topics[self.current_topic_index]
+        self.current_topic_index += 1
+        return topic
+
+
+ongoing_lean_coffees = {}
+
+
+def CreateOrGetLeanCoffee(channel_id: str, coordinator_id: str,
+                          max_votes: int) -> LeanCoffeeBackend | None:
+    if channel_id in ongoing_lean_coffees:
+        if ongoing_lean_coffees[
+                channel_id].status == LeanCoffeeBackend.Status.FINISHED:
+            del ongoing_lean_coffees[channel_id]
+        elif ongoing_lean_coffees[channel_id].coordinator_id != coordinator_id:
+            return None
+        else:
+            return ongoing_lean_coffees[channel_id]
+    lean_coffee = LeanCoffeeBackend(coordinator_id, max_votes)
+    ongoing_lean_coffees[channel_id] = lean_coffee
+    return lean_coffee
