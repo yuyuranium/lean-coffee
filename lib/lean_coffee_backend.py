@@ -114,6 +114,15 @@ class LeanCoffeeBackend:
         topic = Topic(topic_id, content, author)
         self.topics[topic_id] = topic
 
+    def DeleteTopic(self, topic_id: str):
+        if self.status != LeanCoffeeBackend.Status.CREATED:
+            return
+        if topic_id not in self.topics:
+            return
+        author = self.topics[topic_id].author
+        author.authored_topics.remove(self.topics[topic_id])
+        del self.topics[topic_id]
+
     def AttendeeVote(self, topic_id: str, attendee_id: str,
                      attendee_name: str):
         if self.status != LeanCoffeeBackend.Status.CREATED:
@@ -188,6 +197,10 @@ class LeanCoffeeBackend:
 
     def GetLeanCoffeeTime(self) -> str:
         return strftime("%H:%M:%S", gmtime(self.stop_time - self.start_time))
+
+    def AbortLeanCoffee(self):
+        self.status = LeanCoffeeBackend.Status.FINISHED
+        self.stop_time = time()
 
 
 ongoing_lean_coffees = {}
