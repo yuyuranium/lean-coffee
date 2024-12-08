@@ -96,6 +96,8 @@ class LeanCoffeeBackend:
         self.topics = {}
         self.sorted_topics = []
         self.current_topic_index = -1
+        self.start_time = time()
+        self.stop_time = 0
 
     def GetAttendee(self, id: str, name: str):
         if id in self.attendee:
@@ -175,6 +177,7 @@ class LeanCoffeeBackend:
         if self.current_topic_index >= len(self.sorted_topics) - 1:
             self.status = LeanCoffeeBackend.Status.FINISHED
             self.current_topic_index += 1
+            self.stop_time = time()
             return None
 
         # move to the next topic
@@ -182,6 +185,9 @@ class LeanCoffeeBackend:
         self.sorted_topics[self.current_topic_index].StartDiscussion()
         topic = self.sorted_topics[self.current_topic_index]
         return topic
+
+    def GetLeanCoffeeTime(self) -> str:
+        return strftime("%H:%M:%S", gmtime(self.stop_time - self.start_time))
 
 
 ongoing_lean_coffees = {}
