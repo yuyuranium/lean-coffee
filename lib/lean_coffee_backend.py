@@ -121,6 +121,14 @@ class LeanCoffeeBackend:
             return
         author = self.topics[topic_id].author
         author.authored_topics.remove(self.topics[topic_id])
+        for attendee in self.attendee.values():
+            if topic_id in attendee.voted_topics:
+                attendee.voted_topics = [
+                    topic for topic in attendee.voted_topics
+                    if topic != topic_id
+                ]
+                attendee.valid_voted_topics = attendee.voted_topics[:self.
+                                                                    max_votes]
         del self.topics[topic_id]
 
     def AttendeeVote(self, topic_id: str, attendee_id: str,
