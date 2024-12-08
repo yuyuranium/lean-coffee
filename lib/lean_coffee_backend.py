@@ -174,6 +174,7 @@ class LeanCoffeeBackend:
         self.sorted_topics[self.current_topic_index].EndDiscussion()
         if self.current_topic_index >= len(self.sorted_topics) - 1:
             self.status = LeanCoffeeBackend.Status.FINISHED
+            self.current_topic_index += 1
             return None
 
         # move to the next topic
