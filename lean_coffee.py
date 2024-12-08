@@ -1,4 +1,15 @@
-from errbot import BotPlugin, arg_botcmd, botcmd, webhook
+import logging
+import re
+from time import sleep
+from errbot import BotPlugin, arg_botcmd, botcmd, re_botcmd, webhook
+from errbot.backends.base import (
+    REACTION_ADDED,
+    REACTION_REMOVED,
+)
+
+from lib.lean_coffee_backend import *
+
+log = logging.getLogger("errbot.plugins.lean_coffee")
 
 
 class LeanCoffee(BotPlugin):
@@ -67,28 +78,122 @@ class LeanCoffee(BotPlugin):
         """
         pass
 
+    def callback_reaction(self, reaction):
+        lc = GetLeanCoffee(reaction.reacted_to_owner.id)
+        if not lc:
+            return
+
+        if lc.status == LeanCoffeeBackend.Status.CREATED:
+            if reaction.action == REACTION_ADDED:
+                lc.AttendeeVote(
+                    reaction.reacted_to["id"],
+                    reaction.reactor.userid,
+                    reaction.reactor.username,
+                )
+            elif reaction.action == REACTION_REMOVED:
+                lc.AttendeeUnvote(
+                    reaction.reacted_to["id"],
+                    reaction.reactor.userid,
+                    reaction.reactor.username,
+                )
+        elif lc.status == LeanCoffeeBackend.Status.DISCUSSING:
+            if reaction.reacted_to["user_id"] != self.bot_identifier.userid:
+                # self.send(reaction.reacted_to_owner, "Not from bot itself, ignored")
+                return
+
+            message = reaction.reacted_to["message"]
+            is_continue_question = re.match(
+                r"^Continue discussing topic: (.*)\?$", message
+            )
+            if not is_continue_question:
+                # self.send(reaction.reacted_to_owner, "Not a continue question, ignored")
+                return
+
+            content = is_continue_question.group(1)
+
+            cur_topic = lc.GetCurrentTopic()
+            if content != cur_topic.content:
+                # self.send(reaction.reacted_to_owner, "Not current topic, ignored")
+                return
+
+            if reaction.action == REACTION_ADDED:
+                if reaction.reaction_name == "+1":
+                    cur_topic.AddContinueUpvote()
+                elif reaction.reaction_name == "-1":
+                    cur_topic.AddContinueDownvote()
+            elif reaction.action == REACTION_REMOVED:
+                if reaction.reaction_name == "+1":
+                    cur_topic.RemoveContinueUpvote()
+                elif reaction.reaction_name == "-1":
+                    cur_topic.RemoveContinueDownvote()
+
     @webhook
     def example_webhook(self, incoming_request):
         """A webhook which simply returns 'Example'"""
         return "Example"
 
-    # Passing split_args_with=None will cause arguments to be split on any kind
-    # of whitespace, just like Python's split() does
-    @botcmd(split_args_with=None)
-    def example(self, message, args):
-        """A command which simply returns 'Example'"""
-        return "Example"
+    @arg_botcmd("--max-votes", type=int, unpack_args=False)
+    def lc_create(self, message, args):
+        max_votes = abs(args.max_votes or 3)
+        lc = CreateLeanCoffee(message.to.id, message.frm.userid, max_votes)
 
-    @arg_botcmd("name", type=str)
-    @arg_botcmd("--favorite-number", type=int, unpack_args=False)
-    def hello(self, message, args):
-        """
-        A command which says hello to someone.
+        if lc == None:
+            return "Cannot create LeanCoffeeBackend as one is ongoing"
 
-        If you include --favorite-number, it will also tell you their
-        favorite number.
-        """
-        if args.favorite_number:
-            return f"Hello {args.name}, I hear your favorite number is {args.favorite_number}."
-        else:
-            return f"Hello {args.name}."
+        return "Creating LeanCoffee in {} with max_votes={}".format(
+            message.to, max_votes
+        )
+
+    @re_botcmd(pattern=r"^# Topic: (.*)$", prefixed=False)
+    def create_topic(self, message, match):
+        lc = GetLeanCoffee(message.to.id)
+        if lc == None:
+            return "LeanCoffee is not created"
+
+        topic = match.group(1)
+        lc.CreateTopic(
+            message.extras["id"], topic, message.frm.userid, message.frm.username
+        )
+        return "Creating Topic: {} in {}".format(match.group(1), message.to)
+
+    @botcmd
+    def lc_finalize(self, message, args):
+        lc = GetLeanCoffee(message.to.id)
+        if lc == None:
+            return "LeanCoffee is not created"
+
+        # Only coordinator can do so
+        if message.frm.userid != lc.coordinator_id:
+            return "Not coordinator, aborted"
+
+        lc.FinalizeTopics()
+        topics = lc.GetSortedTopics("FULL")
+
+        topic_strs = [
+            "- @{}: {}; votes={}".format(topic.author.name, topic.content, topic.votes)
+            for topic in topics
+        ]
+        return "\n".join(topic_strs)
+
+    @arg_botcmd("time", type=int, unpack_args=False)
+    def lc_next(self, message, args):
+        lc = GetLeanCoffee(message.to.id)
+        if lc == None:
+            yield "LeanCoffee is not created"
+            return
+
+        # Only coordinator can do so
+        if message.frm.userid != lc.coordinator_id:
+            yield "Not coordinator, aborted"
+            return
+
+        topic = lc.GetNextTopic()
+
+        if not topic:
+            yield "No more topics"
+            return
+
+        yield "Discussing {} for {} minutes".format(topic.content, args.time)
+        sleep(args.time)  # use second for now
+        if lc.GetCurrentTopic() == topic:
+            yield "Continue discussing topic: {}?".format(topic.content)
