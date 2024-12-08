@@ -146,6 +146,9 @@ class LeanCoffeeBackend:
         if self.current_topic_index >= len(self.sorted_topics):
             self.status = LeanCoffeeBackend.Status.FINISHED
             return None
+        if self.current_topic_index != -1 and self.sorted_topics[
+                self.current_topic_index].ContinueTopic():
+            return self.sorted_topics[self.current_topic_index]
         self.current_topic_index += 1
         topic = self.sorted_topics[self.current_topic_index]
         return topic
