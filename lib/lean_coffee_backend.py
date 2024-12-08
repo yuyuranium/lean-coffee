@@ -51,7 +51,7 @@ class Topic:
     def RemoveContinueUpvote(self):
         self.continue_vote.upvotes -= 1
 
-    def ContinueDownvote(self):
+    def AddContinueDownvote(self):
         self.continue_vote.downvotes += 1
 
     def RemoveContinueDownvote(self):
