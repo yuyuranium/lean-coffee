@@ -119,7 +119,7 @@ class LeanCoffee(BotPlugin):
             "### Hints\n"
             "- Create topics with [H1 headings](https://docs.mattermost.com/collaborate/format-messages.html#id2)\n"
             "- Delete a topic by [deleting the post](https://docs.mattermost.com/collaborate/send-messages.html#delete-messages)\n"
-            "- Vote for topics by [reacting with emojis](https://docs.mattermost.com/collaborate/react-with-emojis-gifs.html)\n"
+            "- Vote for topics by [reacting with any emojis](https://docs.mattermost.com/collaborate/react-with-emojis-gifs.html)\n"
             "- React :+1: for continuing the topic and :-1: for ending one\n"
         ).format(message.frm.username, max_votes)
 
@@ -244,7 +244,7 @@ class LeanCoffee(BotPlugin):
                         "{}".format(lc.GetLeanCoffeeTime()),
                     ),
                     (
-                        "Topics disscussed:",
+                        "Total topics:",
                         "{}".format(len(topics)),
                     ),
                 ),
@@ -257,6 +257,15 @@ class LeanCoffee(BotPlugin):
             title="Now discussing",
             body="# {}".format(topic.content),
             fields=(
+                (
+                    "Proposed by:",
+                    "@{}".format(topic.author.name),
+                ),
+                (
+                    "Interested by:",
+                    "{}".format(topic.votes)
+
+                ),
                 (
                     "Scheduled:",
                     strftime("%H:%M:%S", gmtime(seconds)),
